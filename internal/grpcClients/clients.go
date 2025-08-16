@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func RunGateway() (pbSSO.SsoClient, pbTataisk.TataiskClient) {
+func SetupGateway() (pbSSO.SsoClient, pbTataisk.TataiskClient) {
 	ssoConn, _ := grpc.NewClient("localhost:5001", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	tataiskConn, _ := grpc.NewClient("localhost:5000", grpc.WithTransportCredentials(insecure.NewCredentials()))
 
