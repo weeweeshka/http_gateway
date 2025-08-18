@@ -11,5 +11,16 @@ func SetupRouter() *gin.Engine {
 	groupSso := r.Group("/")
 	{
 		groupSso.POST("/register", handlers.Register())
+		groupSso.POST("/login", handlers.Login())
 	}
+
+	groupTataisk := r.Group("/")
+	{
+		groupTataisk.POST("/create", handlers.CreateFilm())
+		groupTataisk.GET("/:id", handlers.ReadFilm())
+		groupTataisk.PATCH("/:id", handlers.UpdateFilm())
+		groupTataisk.DELETE("/:id", handlers.DeleteFilm())
+	}
+
+	return r
 }

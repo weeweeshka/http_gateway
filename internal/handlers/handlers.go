@@ -7,7 +7,9 @@ import (
 	clients "github.com/weeweeshka/http_gateway/internal/grpcClients"
 	pbSSO "github.com/weeweeshka/sso_proto/gen/go/sso"
 	pbTataisk "github.com/weeweeshka/tataisk_proto/gen/go/tataisk"
+	"google.golang.org/grpc/metadata"
 	"net/http"
+	"strconv"
 )
 
 var (
@@ -15,21 +17,20 @@ var (
 	_, tataiskClient = clients.SetupGateway()
 )
 
-func Register(email string, password string) gin.HandlerFunc {
+func Register() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := context.Background()
-
-		req := models.RegRequest{
-			Email:    email,
-			Password: password,
-		}
+		var req models.RegRequest
 
 		if err := c.ShouldBind(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		resp, err := tataiskClient.CreateFilm(ctx, &pbTataisk.CreateFilmRequest{})
+		resp, err := ssoClient.Register(ctx, &pbSSO.RegisterRequest{
+			Email:    req.Email,
+			Password: req.Password,
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
@@ -38,21 +39,21 @@ func Register(email string, password string) gin.HandlerFunc {
 	}
 }
 
-func Regapp(name string, secret string) gin.HandlerFunc {
+func Regapp() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := context.Background()
 
-		req := models.RegappRequest{
-			Name:   name,
-			Secret: secret,
-		}
+		var req models.RegappRequest
 
 		if err := c.ShouldBind(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		resp, err := ssoClient.Regapp(ctx, &pbSSO.RegappRequest{})
+		resp, err := ssoClient.Regapp(ctx, &pbSSO.RegappRequest{
+			Name:   req.Name,
+			Secret: req.Secret,
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -62,22 +63,22 @@ func Regapp(name string, secret string) gin.HandlerFunc {
 	}
 }
 
-func Login(email string, password string, appID int32) gin.HandlerFunc {
+func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := context.Background()
 
-		req := models.LoginRequest{
-			Email:    email,
-			Password: password,
-			AppID:    appID,
-		}
+		var req models.LoginRequest
 
 		if err := c.ShouldBind(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		resp, err := ssoClient.Login(ctx, &pbSSO.LoginRequest{})
+		resp, err := ssoClient.Login(ctx, &pbSSO.LoginRequest{
+			Email:    req.Email,
+			Password: req.Password,
+			AppId:    req.AppID,
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -87,29 +88,31 @@ func Login(email string, password string, appID int32) gin.HandlerFunc {
 	}
 }
 
-func CreateFilm(data models.FilmData) gin.HandlerFunc {
+func CreateFilm() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx := context.Background()
-
-		req := models.FilmData{
-			Title:        data.Title,
-			YearOfProd:   data.YearOfProd,
-			Imdb:         data.Imdb,
-			Description:  data.Description,
-			Country:      data.Country,
-			Genre:        data.Genre,
-			FilmDirector: data.FilmDirector,
-			Screenwriter: data.Screenwriter,
-			Budget:       data.Budget,
-			Collection:   data.Collection,
-		}
-
+		token := c.GetHeader("Authorization")
+		var req models.FilmData
 		if err := c.ShouldBind(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		resp, err := tataiskClient.CreateFilm(ctx, &pbTataisk.CreateFilmRequest{})
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"authorization": token,
+		}))
+
+		resp, err := tataiskClient.CreateFilm(ctx, &pbTataisk.CreateFilmRequest{
+			Title:        req.Title,
+			YearOfProd:   req.YearOfProd,
+			Imdb:         req.Imdb,
+			Description:  req.Description,
+			Country:      req.Country,
+			Genre:        req.Genre,
+			FilmDirector: req.FilmDirector,
+			Screenwriter: req.Screenwriter,
+			Budget:       req.Budget,
+			Collection:   req.Collection,
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -120,11 +123,20 @@ func CreateFilm(data models.FilmData) gin.HandlerFunc {
 	}
 }
 
-func ReadFilm(id int32) gin.HandlerFunc {
+func ReadFilm() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx := context.Background()
+		token := c.GetHeader("Authorization")
 
-		resp, err := tataiskClient.ReadFilm(ctx, &pbTataisk.ReadFilmRequest{})
+		filmIdStr := c.Param("id")
+		filmID, _ := strconv.Atoi(filmIdStr)
+
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"authorization": token,
+		}))
+
+		resp, err := tataiskClient.ReadFilm(ctx, &pbTataisk.ReadFilmRequest{
+			Id: int32(filmID),
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
@@ -132,27 +144,36 @@ func ReadFilm(id int32) gin.HandlerFunc {
 	}
 }
 
-func UpdateFilm(id int32, data models.FilmData) gin.HandlerFunc {
+func UpdateFilm() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx := context.Background()
-		req := models.FilmData{
-			Title:        data.Title,
-			YearOfProd:   data.YearOfProd,
-			Imdb:         data.Imdb,
-			Description:  data.Description,
-			Country:      data.Country,
-			Genre:        data.Genre,
-			FilmDirector: data.FilmDirector,
-			Screenwriter: data.Screenwriter,
-			Budget:       data.Budget,
-			Collection:   data.Collection,
-		}
+		token := c.GetHeader("Authorization")
+
+		var req models.FilmData
+		filmIdStr := c.Param("id")
+		filmID, _ := strconv.Atoi(filmIdStr)
+
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"authorization": token,
+		}))
 		if err := c.ShouldBind(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		resp, err := tataiskClient.UpdateFilm(ctx, &pbTataisk.UpdateFilmRequest{})
+		resp, err := tataiskClient.UpdateFilm(ctx, &pbTataisk.UpdateFilmRequest{
+			Id:           int32(filmID),
+			Title:        &req.Title,
+			YearOfProd:   &req.YearOfProd,
+			Imdb:         &req.Imdb,
+			Description:  &req.Description,
+			Country:      req.Country,
+			Genre:        req.Genre,
+			FilmDirector: &req.FilmDirector,
+			Screenwriter: &req.Screenwriter,
+			Budget:       &req.Budget,
+			Collection:   &req.Collection,
+		})
+
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -162,10 +183,19 @@ func UpdateFilm(id int32, data models.FilmData) gin.HandlerFunc {
 	}
 }
 
-func DeleteFilm(id int32) gin.HandlerFunc {
+func DeleteFilm() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx := context.Background()
-		resp, err := tataiskClient.DeleteFilm(ctx, &pbTataisk.DeleteFilmRequest{})
+		token := c.GetHeader("Authorization")
+
+		filmIdStr := c.Param("id")
+		filmID, _ := strconv.Atoi(filmIdStr)
+
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"authorization": token,
+		}))
+		resp, err := tataiskClient.DeleteFilm(ctx, &pbTataisk.DeleteFilmRequest{
+			Id: int32(filmID),
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
