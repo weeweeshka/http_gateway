@@ -10,6 +10,7 @@ func SetupRouter() *gin.Engine {
 
 	groupSso := r.Group("/")
 	{
+		groupSso.POST("/regapp", handlers.Regapp())
 		groupSso.POST("/register", handlers.Register())
 		groupSso.POST("/login", handlers.Login())
 	}
