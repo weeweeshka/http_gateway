@@ -6,21 +6,21 @@ import (
 )
 
 func SetupRouter() *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
 
-	groupSso := r.Group("/")
+	groupSso := r.Group("/auth")
 	{
-		groupSso.POST("/regapp", handlers.Regapp())
 		groupSso.POST("/register", handlers.Register())
+		groupSso.POST("/regapp", handlers.Regapp())
 		groupSso.POST("/login", handlers.Login())
 	}
 
-	groupTataisk := r.Group("/")
+	groupTataisk := r.Group("/films")
 	{
 		groupTataisk.POST("/create", handlers.CreateFilm())
-		groupTataisk.GET("/:id", handlers.ReadFilm())
-		groupTataisk.PATCH("/:id", handlers.UpdateFilm())
-		groupTataisk.DELETE("/:id", handlers.DeleteFilm())
+		groupTataisk.GET("/read/:id", handlers.ReadFilm())
+		groupTataisk.PATCH("/update/:id", handlers.UpdateFilm())
+		groupTataisk.DELETE("/delete/:id", handlers.DeleteFilm())
 	}
 
 	return r
