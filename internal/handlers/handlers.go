@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	pbComments "github.com/weeweeshka/comments_proto/gen/go/comments"
 	"github.com/weeweeshka/http_gateway/internal/domain/models"
 	clients "github.com/weeweeshka/http_gateway/internal/grpcClients"
 	pbSSO "github.com/weeweeshka/sso_proto/gen/go/sso"
@@ -13,8 +14,9 @@ import (
 )
 
 var (
-	ssoClient, _     = clients.SetupGateway()
-	_, tataiskClient = clients.SetupGateway()
+	ssoClient, _, _      = clients.SetupGateway()
+	_, tataiskClient, _  = clients.SetupGateway()
+	_, _, commentsClient = clients.SetupGateway()
 )
 
 func Register() gin.HandlerFunc {
@@ -201,5 +203,72 @@ func DeleteFilm() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusCreated, resp)
+	}
+}
+
+func CreateComment() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+		var req models.CommentReq
+		if err := c.ShouldBind(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
+		comment := &pbComments.Comment{
+			Title:   req.Title,
+			Content: req.Content,
+		}
+
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"authorization": token,
+		}))
+
+		resp, err := commentsClient.CreateComment(ctx, &pbComments.CreateCommentRequest{FilmId: req.FilmID, Comment: comment})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+
+		c.JSON(http.StatusCreated, resp)
+	}
+}
+
+func ReadComment() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+
+		filmIdStr := c.Param("id")
+		filmID, _ := strconv.Atoi(filmIdStr)
+
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"authorization": token,
+		}))
+
+		resp, err := commentsClient.GetComments(ctx, &pbComments.GetCommentsRequest{
+			FilmId: int32(filmID),
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+
+		c.JSON(http.StatusCreated, resp)
+	}
+}
+
+func DeleteComment() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+		filmIdStr := c.Param("id")
+		filmID, _ := strconv.Atoi(filmIdStr)
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"authorization": token,
+		}))
+
+		resp, err := commentsClient.DeleteComment(ctx, &pbComments.DeleteCommentRequest{
+			FilmId: int32(filmID),
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		c.JSON(http.StatusCreated, resp)
+
 	}
 }

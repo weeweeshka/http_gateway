@@ -23,5 +23,12 @@ func SetupRouter() *gin.Engine {
 		groupTataisk.DELETE("/delete/:id", handlers.DeleteFilm())
 	}
 
+	groupComments := r.Group("/comments")
+	{
+		groupComments.POST("/create", handlers.CreateComment())
+		groupComments.GET("/read/:id", handlers.ReadComment())
+		groupComments.DELETE("/delete/:id", handlers.DeleteComment())
+	}
+
 	return r
 }
